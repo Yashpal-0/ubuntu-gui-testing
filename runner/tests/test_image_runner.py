@@ -204,9 +204,10 @@ def test_raises_when_source_has_no_nvram(tmp_path: Path) -> None:
 
 
 def test_copies_nvram_to_pool_directory(tmp_path: Path) -> None:
-    # Create a fake NVRAM source file
+    # Exports can be read-only; QEMU needs the clone's NVRAM writable.
     nvram_source = tmp_path / "source-VARS.fd"
     nvram_source.write_bytes(b"nvram-data")
+    nvram_source.chmod(0o400)
 
     # Patch the source XML to use our tmp_path NVRAM
     source_xml = SOURCE_DOMAIN_XML.replace("/pool/source-VARS.fd", str(nvram_source))
@@ -226,6 +227,7 @@ def test_copies_nvram_to_pool_directory(tmp_path: Path) -> None:
             nvram_dest = pool_dir / runner.nvram_volume_name
             assert nvram_dest.exists()
             assert nvram_dest.read_bytes() == b"nvram-data"
+            assert nvram_dest.stat().st_mode & 0o200
         finally:
             runner.close()
 

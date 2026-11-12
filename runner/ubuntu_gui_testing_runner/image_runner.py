@@ -174,6 +174,9 @@ class LibvirtImageRunner(_BaseLibvirtRunner):
         """Copy the NVRAM file into the pool, leaving the original untouched."""
         dest = self.pool_dir / self.nvram_volume_name
         shutil.copy2(self.nvram_path, dest)
+        # copy2 keeps the source mode, and a read-only export would stop QEMU
+        # opening the clone's NVRAM read-write at domain start.
+        dest.chmod(0o600)
         self.pool.refresh(0)
 
     def _copy_tpm_state(self) -> None:
