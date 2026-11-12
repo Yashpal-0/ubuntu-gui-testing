@@ -304,6 +304,40 @@ def test_skips_tpm_copy_when_source_has_no_tpm_state(tmp_path: Path) -> None:
             runner.close()
 
 
+def test_copies_tpm_state_from_configured_directory(tmp_path: Path) -> None:
+    swtpm_dir = tmp_path / "swtpm"
+    source_tpm_dir = swtpm_dir / "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    source_tpm_dir.mkdir(parents=True)
+    (source_tpm_dir / "tpm2-00.permall").write_bytes(b"tpm-state")
+
+    nvram_source = tmp_path / "source-VARS.fd"
+    nvram_source.write_bytes(b"nvram-data")
+
+    source_xml = SOURCE_DOMAIN_XML.replace("/pool/source-VARS.fd", str(nvram_source))
+    conn = _make_conn(source_xml=source_xml)
+
+    pool_dir = tmp_path / "pool"
+    pool_dir.mkdir()
+
+    with patch("libvirt.open", return_value=conn):
+        runner = LibvirtImageRunner(
+            source_domain="source",
+            suite_name="test",
+            test_name="basic",
+            pool_dir=pool_dir,
+            swtpm_state_dir=swtpm_dir,
+        )
+        dest_tpm_dir = swtpm_dir / "11111111-2222-3333-4444-555555555555"
+        try:
+            assert (dest_tpm_dir / "tpm2-00.permall").read_bytes() == b"tpm-state"
+        finally:
+            runner.close()
+
+    # Cleanup removes only the clone's copy, from the same directory.
+    assert not dest_tpm_dir.exists()
+    assert (source_tpm_dir / "tpm2-00.permall").read_bytes() == b"tpm-state"
+
+
 def test_extracts_recovery_key_from_source_metadata(tmp_path: Path) -> None:
     nvram_source = tmp_path / "source-VARS.fd"
     nvram_source.write_bytes(b"nvram-data")

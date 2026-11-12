@@ -34,11 +34,17 @@ class LibvirtImageRunner(_BaseLibvirtRunner):
         domain_template: Path | None = None,
         overlay_template: Path | None = None,
         mount_source_domain: str | None = None,
+        swtpm_state_dir: Path | None = None,
         **kwargs: Any,
     ) -> None:
         self.source_domain_name = source_domain
         self.recovery_key: str | None = None
         self.mount_source_domain = mount_source_domain
+        self.swtpm_state_dir = (
+            swtpm_state_dir.resolve()
+            if swtpm_state_dir is not None
+            else DEFAULT_SWTPM_STATE_DIR
+        )
 
         self.overlay_template_path = (
             overlay_template.resolve()
@@ -115,7 +121,7 @@ class LibvirtImageRunner(_BaseLibvirtRunner):
         uuid_elem = xml.find("uuid")
         self.source_tpm_state_dir: Path | None
         if uuid_elem is not None and uuid_elem.text:
-            self.source_tpm_state_dir = DEFAULT_SWTPM_STATE_DIR / uuid_elem.text
+            self.source_tpm_state_dir = self.swtpm_state_dir / uuid_elem.text
         else:
             self.source_tpm_state_dir = None
 
@@ -186,7 +192,7 @@ class LibvirtImageRunner(_BaseLibvirtRunner):
             return
 
         new_uuid = self.domain.UUIDString()
-        dest_tpm_dir = DEFAULT_SWTPM_STATE_DIR / new_uuid
+        dest_tpm_dir = self.swtpm_state_dir / new_uuid
         shutil.copytree(self.source_tpm_state_dir, dest_tpm_dir)
         LOGGER.info(
             "Copied TPM state from '%s' to '%s'",
@@ -271,7 +277,7 @@ class LibvirtImageRunner(_BaseLibvirtRunner):
     def close(self) -> None:
         # Clean up the copied TPM state directory
         if self._domain is not None and not self.keep:
-            tpm_dir = DEFAULT_SWTPM_STATE_DIR / self._domain.UUIDString()
+            tpm_dir = self.swtpm_state_dir / self._domain.UUIDString()
             if tpm_dir.exists():
                 try:
                     shutil.rmtree(tpm_dir)

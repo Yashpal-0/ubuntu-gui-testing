@@ -44,6 +44,7 @@ def main() -> None:
             connection_uri=args.connection_uri,
             pool_name=args.pool_name,
             pool_dir=args.pool_dir,
+            swtpm_state_dir=args.swtpm_state_dir,
         )
 
     with runner_ctx as runner:
