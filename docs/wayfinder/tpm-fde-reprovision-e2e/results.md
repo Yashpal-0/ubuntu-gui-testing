@@ -107,13 +107,10 @@ repair, and none is claimed as a pass:
 - `artifacts/fde-os6wk8x3`: suite setup timed out at the firmware screen. A
   concurrent `cargo build` on the host drove the load average above 50 and the
   guest needed more than the 18×10 s boot budget. The artifact is incomplete and
-  claims nothing; the rerun is queued behind a load gate.
+  claims nothing. The case has since passed; see the table.
 
-`plain-ovmf` (Secure Boot guidance), the passphrase-before-repair case, the
-power-cut case, and the clean replays of the three firmware cases and the
-cancel case are not claimed as passing. Enum gaps are in
-`tpm-fde-coverage.yaml`; auth and failure scenario work remains in tickets 08
-and 09.
+`plain-ovmf` (Secure Boot guidance) is not claimed as passing. Enum gaps are in
+`tpm-fde-coverage.yaml`.
 
 ## What a pass proves
 
