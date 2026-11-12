@@ -110,6 +110,7 @@ def _make_conn(
 
     source_domain = MagicMock()
     source_domain.XMLDesc.return_value = source_xml
+    source_domain.isActive.return_value = 0
 
     def lookup(name: str) -> MagicMock:
         if name == "source" and source_exists:
@@ -130,6 +131,31 @@ def _make_conn(
     conn.defineXML.return_value = defined_domain
 
     return conn
+
+
+def test_rejects_running_source_without_creating_writable_clone(tmp_path: Path) -> None:
+    nvram = tmp_path / "source-VARS.fd"
+    nvram.write_bytes(b"original-nvram")
+    conn = _make_conn(SOURCE_DOMAIN_XML.replace("/pool/source-VARS.fd", str(nvram)))
+    source = conn.lookupByName("source")
+    source.isActive.return_value = 1
+
+    with (
+        patch("libvirt.open", return_value=conn),
+        pytest.raises(RuntimeError),
+        LibvirtImageRunner(
+            source_domain="source",
+            suite_name="test",
+            test_name="basic",
+            pool_dir=tmp_path,
+        ),
+    ):
+        pass
+
+    conn.storagePoolLookupByName.return_value.createXML.assert_not_called()
+    conn.defineXML.assert_not_called()
+    source.destroy.assert_not_called()
+    assert nvram.read_bytes() == b"original-nvram"
 
 
 def test_raises_when_source_domain_not_found(tmp_path: Path) -> None:

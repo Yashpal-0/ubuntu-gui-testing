@@ -69,6 +69,11 @@ class LibvirtImageRunner(_BaseLibvirtRunner):
                 f"Source domain '{self.source_domain_name}' not found"
             ) from err
 
+        if source.isActive() != 0:
+            raise RuntimeError(
+                f"Source domain '{self.source_domain_name}' must be stopped"
+            )
+
         xml = ET.fromstring(source.XMLDesc(0))
 
         # Find the primary disk image (first virtio disk)
