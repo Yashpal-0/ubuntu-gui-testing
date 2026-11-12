@@ -33,10 +33,15 @@ Output lands in `tests/desktop-security-center/desktop-security-center-reprovisi
 
 Three of the thirteen are implemented and passing: `sys-prep-applications-present`,
 `weak-secure-boot-algorithms-detected`, `pre-os-secure-boot-auth-by-enrolled-digests`.
-The weak-secure-boot replay that started after `tpm-fde.resource` last changed
-(`fde-5_uhu_2y`, 13:58) timed out looking for `Disk encryption` with GNOME's
-Run-a-Command dialog on screen, so it failed before the state was ever asserted;
-the three state cases were rerun on the final tree before this pass claim stood.
+After the launch fix in `common/common.resource` (18:06) all three state cases
+pass: `fde-6wxmvrg4` (weak secure boot, 263 s), `fde-mu1lymjr` (pre-OS digest,
+215 s) and `fde-j43_fimo` (sysprep, 234 s). Two replays failed before that fix:
+`fde-5_uhu_2y` (13:58) timed out looking for `Disk encryption` with GNOME's
+Run-a-Command dialog still open after the Return, which is the launch race the
+new `Start Application` retry now handles, and the queue's sysprep step
+`fde-ov8vljgo` (18:10) waited the whole 600 s for the boot prompt while the
+guest sat at `BdsDxe: starting Boot0003` under host load 50; neither reached the
+state assertion.
 The cleared-TPM case that exercises `running-in-vm` and `require-reprovision` is
 also implemented. The other ten are not cases, and each has a source-backed
 reason now instead of a failed recipe:

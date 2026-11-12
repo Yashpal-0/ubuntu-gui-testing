@@ -29,9 +29,9 @@ in this table is a mock or a skipped run.
 | state | `tpm-device-disabled` | firmware must disable both hierarchies at boot; OVMF does not; `check_tpm.go:333-343` | blocked |
 | state | `no-suitable-pcr-bank` | bank selection is firmware-owned and has no fixture knob; `Tcg2Pei.c:358-443` | blocked |
 | state | `unsupported-platform` | earlier host-security gate makes classifier unreachable; `checks_context.go:506-513` | blocked |
-| state | `sys-prep-applications-present` | `sysprep-app` | pass: `artifacts/fde-eulq8mx4` (515 s, zero recovery-key pattern matches) |
-| state | `weak-secure-boot-algorithms-detected` | `preos-weak-sb` | pass: `artifacts/fde-jmt6ti2b` (473 s, zero recovery-key pattern matches) |
-| state | `pre-os-secure-boot-auth-by-enrolled-digests` | `preos-digest-sb` | pass: `artifacts/fde-kb6g12cr` (549 s, zero recovery-key pattern matches) |
+| state | `sys-prep-applications-present` | `sysprep-app` | pass: `artifacts/fde-j43_fimo` (234 s, zero recovery-key pattern matches) |
+| state | `weak-secure-boot-algorithms-detected` | `preos-weak-sb` | pass: `artifacts/fde-6wxmvrg4` (263 s, zero recovery-key pattern matches) |
+| state | `pre-os-secure-boot-auth-by-enrolled-digests` | `preos-digest-sb` | pass: `artifacts/fde-mu1lymjr` (215 s, zero recovery-key pattern matches) |
 | state | `unexpected-action` | app sends only offered actions; needs a concurrent state race; `checks_context.go:639-664` | blocked |
 | state | `action-failed` | no reachable boot state offers the required PPI action; `checks_context.go:670-678,709-715` | blocked |
 | failure | cancel before repair | `clear-tpm-state` | pass: `artifacts/fde-0gi5xi2l` (299 s with the credential assertion, zero recovery-key pattern matches) |
@@ -56,8 +56,15 @@ key; this is not approval to upload the artifacts.
 The three older firmware-case runs were functional passes, not clean-log
 evidence: each `output.xml` contained 14 recovery-key-pattern matches. Their
 directories are private (0700), but the recordings and logs must not be
-published. The replays `fde-kb6g12cr` (pre-OS digest), `fde-eulq8mx4`
-(sysprep), and `fde-jmt6ti2b` (weak secure boot) are clean.
+published. The final-tree replays `fde-mu1lymjr` (pre-OS digest), `fde-j43_fimo`
+(sysprep), and `fde-6wxmvrg4` (weak secure boot) are clean.
+One intermediate sysprep replay in that queue (`fde-ov8vljgo`, 18:10) never
+left firmware under host load 50 and failed in setup; its solo rerun passed,
+matching the earlier load-induced stall at `fde-os6wk8x3`.
+Only the three state replays above postdate the 18:06 launch-retry hardening in
+`common/common.resource`; the other nine passes ran before it. The hardening
+only guards a stuck Run-a-Command dialog during `Start Application`, not the
+repair path.
 
 The successful expiry run `fde-m2u9u88d` proves the exact
 `recovery key has expired` backend failure, rejection of the expired key on
