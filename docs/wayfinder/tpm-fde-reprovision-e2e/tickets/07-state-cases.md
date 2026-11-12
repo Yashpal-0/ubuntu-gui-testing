@@ -33,6 +33,10 @@ Output lands in `tests/desktop-security-center/desktop-security-center-reprovisi
 
 Three of the thirteen are implemented and passing: `sys-prep-applications-present`,
 `weak-secure-boot-algorithms-detected`, `pre-os-secure-boot-auth-by-enrolled-digests`.
+The weak-secure-boot replay that started after `tpm-fde.resource` last changed
+(`fde-5_uhu_2y`, 13:58) timed out looking for `Disk encryption` with GNOME's
+Run-a-Command dialog on screen, so it failed before the state was ever asserted;
+the three state cases were rerun on the final tree before this pass claim stood.
 The cleared-TPM case that exercises `running-in-vm` and `require-reprovision` is
 also implemented. The other ten are not cases, and each has a source-backed
 reason now instead of a failed recipe:
