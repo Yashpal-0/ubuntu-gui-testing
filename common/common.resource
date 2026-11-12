@@ -105,6 +105,18 @@ Start Application
     Type String    ${application}
     ${ret}    Create List    Return
     Keys Combo    ${ret}
+    # A loaded host can drop the Return while the prompt is still taking input,
+    # leaving the dialog open with the command typed. Let the dialog close first,
+    # so a retry can never press Return into the application it just started.
+    BuiltIn.Sleep    2
+    FOR    ${_}    IN RANGE    8
+        ${open}    Run Keyword And Return Status    Match Text    Run a Command    1
+        IF    not ${open}    RETURN
+        Keys Combo    ${ret}
+        BuiltIn.Sleep    2
+    END
+    ${open}    Run Keyword And Return Status    Match Text    Run a Command    1
+    IF    ${open}    Fail    The command prompt stayed open instead of running: ${application}
 
 Log In
     [Documentation]         Log in to desktop session
