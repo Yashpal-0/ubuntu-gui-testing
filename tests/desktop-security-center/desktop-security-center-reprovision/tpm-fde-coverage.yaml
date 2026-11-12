@@ -5,6 +5,8 @@ pins:
   secboot: 4924adcf6262
   app: d2d204dd
   snapd_dart: 0.7.8
+sources:
+  - docs/wayfinder/tpm-fde-reprovision-e2e/tickets/12-snapd-emission-paths.md
 # Executed means observed in a passing run; every other entry names an
 # untested recipe or gap.
 kind:

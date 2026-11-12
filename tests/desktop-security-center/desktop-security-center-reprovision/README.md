@@ -73,7 +73,8 @@ Run the whole set by repeating the command with each case's `--test`,
 `--robot-test` and fixture; one clone per case, never two cases in one clone.
 There is no single-invocation whole-suite run: `--fde-config` requires
 `--robot-test`, and the fixture selects the clone mutation, so each case needs
-its own command.
+its own command. `docs/wayfinder/tpm-fde-reprovision-e2e/results.md` records the
+per-case run directory and result.
 
 ## Fixtures
 

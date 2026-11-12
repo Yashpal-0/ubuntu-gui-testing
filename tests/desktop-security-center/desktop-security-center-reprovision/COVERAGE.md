@@ -3,7 +3,8 @@
 Kinds and actions are taken from secboot `4924adcf6262`
 (`efi/preinstall/error_kinds.go`, `errorKindToActions` in `checks_context.go`,
 `actions.go`). Which of them snapd `1f728a2` actually emits to a running system
-was traced in snapd's source at that commit.
+comes from the ticket
+[snapd emission paths and recipe legitimacy](../../../docs/wayfinder/tpm-fde-reprovision-e2e/tickets/12-snapd-emission-paths.md).
 
 The firmware reasons cite edk2 `OvmfPkg` sources (`Tcg2Pei.c`, `Tcg2Dxe.c`,
 `Tcg2ConfigNvData.h`, `Tcg2ConfigPeim.c`, `PeiDxeTpmPlatformHierarchyLib.c`) as
