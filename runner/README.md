@@ -67,6 +67,41 @@ If `--mount-source-domain` is passed without a value, the default device is
 
 Either `--iso` or `--source-domain` must be provided.
 
+### TPM-FDE fixtures
+
+`--fde-config PATH` names a private TPM-FDE fixture and requires
+`--robot-test NAME`; one selected case runs against one disposable clone. The
+fixture's `prepare` list owns every state change made before that case starts,
+while the case itself drives the repair through the installed application.
+
+| `prepare` step | State created before the case |
+|---|---|
+| `clear-tpm-state` | Removes the clone's TPM state so snapd asks for recovery |
+| `no-tpm` | Removes the clone's TPM device so snapd reports no suitable TPM2 device |
+| `plain-ovmf` | Boots SB-capable firmware with Secure Boot off |
+| `sysprep-app` | Adds a signed vendor SysPrep application |
+| `sysprep-weak-sb` | Adds a SysPrep application signed with a weak key |
+| `sysprep-digest-sb` | Adds a SysPrep application authorized by digest |
+| `preos-digest-sb` | Adds a pre-OS driver authorized by digest |
+| `preos-weak-sb` | Adds a pre-OS driver signed with a weak key |
+| `enroll-auth` | Enrolls the fixture's `auth_mode` PIN or passphrase |
+
+`enroll-auth` needs one real first boot: the runner boots the clone, has snapd
+replace the platform keyslots through `/v2/system-volumes`, waits for the
+change, and requests a clean shutdown. Every other stopped-clone preparation
+runs after that shutdown, and Yarf starts only after the clone is stopped
+again. The step requires `auth_mode` `pin` or `passphrase`. A stopped-clone
+fault may follow it, including `clear-tpm-state`: clearing the cloned TPM
+state leaves the on-disk keyslot authentication metadata intact, so the clone
+boots with its recovery key while the repair UI still sees the enrolled mode.
+`plain-ovmf` also waits: enrollment boots the healthy Secure Boot domain, and
+the stopped clone is redefined to plain OVMF only after shutdown.
+`no-tpm` waits the same way: enrollment boots with the clone's TPM device, and
+only the stopped clone is redefined without it; the source domain keeps its TPM.
+The same action is available to the Robot library as the `enroll-auth` guest
+operation with parameters `{"auth_mode": "pin"|"passphrase", "pin"|"passphrase":
+...}`; secrets stay in the fixture and never become Robot variables.
+
 ## Development
 
 Requires Python ≥ 3.12 and [uv](https://docs.astral.sh/uv/).

@@ -7,6 +7,7 @@ import time
 from abc import abstractmethod
 from datetime import date
 from pathlib import Path
+from tempfile import mkdtemp
 
 import defusedxml.ElementTree as ET
 import libvirt  # type: ignore[import-untyped]
@@ -28,6 +29,8 @@ LOGGER = logging.getLogger(__name__)
 class _BaseLibvirtRunner(Runner):
     """Common infrastructure for libvirt-based runners."""
 
+    robot_test: str | None = None
+
     def __init__(
         self,
         suite_name: str,
@@ -38,11 +41,13 @@ class _BaseLibvirtRunner(Runner):
         connection_uri: str = DEFAULT_CONNECTION_URI,
         pool_name: str = DEFAULT_POOL_NAME,
         pool_dir: Path = DEFAULT_POOL_DIR,
+        robot_test: str | None = None,
     ) -> None:
         self.connection_uri = connection_uri
         self.pool_name = pool_name
         self.pool_dir = pool_dir.resolve()
         self.keep = keep
+        self.robot_test = robot_test
 
         self.pool_template_path = (
             pool_template.resolve()
@@ -309,6 +314,10 @@ class _BaseLibvirtRunner(Runner):
         vnc_port: int,
         robot_variables: dict[str, str],
     ) -> asyncio.subprocess.Process:
+        is_fde = "FDE_CONFIG" in robot_variables
+        if is_fde:
+            self.artifacts_path.mkdir(parents=True, exist_ok=True)
+            self.artifacts_path = Path(mkdtemp(prefix="fde-", dir=self.artifacts_path))
         command = [
             "yarf",
             "--platform=Vnc",
@@ -320,8 +329,17 @@ class _BaseLibvirtRunner(Runner):
         for name, value in robot_variables.items():
             command.extend(["--variable", f"{name}:{value}"])
         command.extend(["--suite", test])
+        if self.robot_test:
+            command.extend(["--test", self.robot_test])
         env = os.environ.copy()
         env["VNC_PORT"] = str(vnc_port - 5900)
+        # Robot libraries such as the FDE fixture import this package directly.
+        runner_root = str(Path(__file__).resolve().parent.parent)
+        env["PYTHONPATH"] = os.pathsep.join(
+            [runner_root, env["PYTHONPATH"]] if env.get("PYTHONPATH") else [runner_root]
+        )
+        if is_fde:
+            return await asyncio.create_subprocess_exec(*command, env=env, umask=0o077)
         process = await asyncio.create_subprocess_exec(*command, env=env)
         return process
 

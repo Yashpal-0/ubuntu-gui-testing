@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import stat
+import sys
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from ubuntu_gui_testing_runner.base import _BaseLibvirtRunner
 
@@ -20,7 +24,17 @@ class _FakeRunner(_BaseLibvirtRunner):
         return 0
 
 
-def test_yarf_command_includes_suite_and_test() -> None:
+@pytest.mark.parametrize(
+    "robot_variables",
+    [
+        {"CID": "3"},
+        {"CID": "3", "FDE_CONFIG": "/private/fde.json"},
+        {"CID": "3", "FDE_CONFIG": ""},
+    ],
+)
+def test_yarf_command_includes_suite_and_test(
+    robot_variables: dict[str, str], tmp_path: Path
+) -> None:
     captured_cmd: list[str] = []
 
     async def fake_exec(*args: str, **kwargs: Any) -> AsyncMock:
@@ -29,19 +43,73 @@ def test_yarf_command_includes_suite_and_test() -> None:
 
     with patch("asyncio.create_subprocess_exec", side_effect=fake_exec):
         runner = _FakeRunner.__new__(_FakeRunner)
-        runner.artifacts_path = Path("/artifacts")
+        runner.artifacts_path = tmp_path / "artifacts"
         asyncio.run(
             runner._spawn_yarf(
                 suite="my-suite",
                 test="my-test",
                 vnc_port=5902,
-                robot_variables={"CID": "3"},
+                robot_variables=robot_variables,
             )
         )
 
-    assert captured_cmd[0] == "yarf"
-    assert "my-suite" in captured_cmd
-    assert "my-test" in captured_cmd
+    separator = captured_cmd.index("--")
+    assert captured_cmd[:4] == [
+        "yarf",
+        "--platform=Vnc",
+        "my-suite",
+        "--outdir",
+    ]
+    outdir = Path(captured_cmd[4])
+    if "FDE_CONFIG" in robot_variables:
+        assert outdir.parent == tmp_path / "artifacts"
+    else:
+        assert outdir == tmp_path / "artifacts"
+    assert captured_cmd[5:separator] == []
+    assert captured_cmd[-2:] == ["--suite", "my-test"]
+
+
+def test_fde_yarf_artifacts_are_private(tmp_path: Path) -> None:
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    artifacts_mode = artifacts.stat().st_mode
+    before = tmp_path / "before"
+    before.write_bytes(b"")
+    runner = _FakeRunner.__new__(_FakeRunner)
+    runner.artifacts_path = artifacts
+    create_subprocess_exec = asyncio.create_subprocess_exec
+
+    async def spawn_probe(*args: str, **kwargs: Any) -> asyncio.subprocess.Process:
+        outdir = args[args.index("--outdir") + 1]
+        return await create_subprocess_exec(
+            sys.executable,
+            "-c",
+            "import sys; from pathlib import Path; root = Path(sys.argv[1]); "
+            "(root / 'screenshots').mkdir(); "
+            "(root / 'screenshots/frame.png').write_bytes(b'sensitive'); "
+            "(root / 'output.xml').write_text('sensitive')",
+            outdir,
+            **kwargs,
+        )
+
+    async def run_probe() -> None:
+        with patch("asyncio.create_subprocess_exec", side_effect=spawn_probe):
+            process = await runner._spawn_yarf(
+                "suite", "test", 5901, {"CID": "3", "FDE_CONFIG": "/private/fde.json"}
+            )
+        assert await process.wait() == 0
+
+    asyncio.run(run_probe())
+
+    after = tmp_path / "after"
+    after.write_bytes(b"")
+    assert after.stat().st_mode == before.stat().st_mode
+    assert artifacts.stat().st_mode == artifacts_mode
+    assert runner.artifacts_path.parent == artifacts
+    assert stat.S_IMODE(runner.artifacts_path.stat().st_mode) == 0o700
+    assert stat.S_IMODE((runner.artifacts_path / "screenshots").stat().st_mode) == 0o700
+    for name in ("output.xml", "screenshots/frame.png"):
+        assert stat.S_IMODE((runner.artifacts_path / name).stat().st_mode) == 0o600
 
 
 def test_yarf_command_passes_vsock_cid_as_variable() -> None:
