@@ -161,3 +161,7 @@ timestamps to verify that wait; video duration does not prove elapsed time.
   agree, because the pool is looked up by name.
 - Inspect leftover domains before cleanup; never remove an unrelated domain or
   the checkpoint. The runner owns the disposable clone it creates.
+- A run with `--keep` keeps the clone's domain *and* its pool volume, so the
+  next run of the same case stops at `storage volume ... exists already`.
+  Undefine the kept domain with `--nvram` and delete that case's volume from
+  `vol-list` before rerunning.
