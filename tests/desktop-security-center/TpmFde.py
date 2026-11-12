@@ -1266,19 +1266,34 @@ class TpmFde:
             time.sleep(POLL_INTERVAL)
 
     def wait_for_guest_after_power_cut(self) -> dict[str, Any]:
-        """Wait until the restarted clone answers over its guest channel."""
+        """Wait until the restarted clone answers over its guest channel.
+
+        snapd answers a snapshot probe with a `snapd-error` while its on-boot
+        retry is still converting the interrupted keyslots, and the guest is
+        unreachable until userspace starts, so both are retried. Trust,
+        authentication and malformed-response failures stay permanent and fail
+        at once.
+        """
         deadline = time.monotonic() + BOOT_TIMEOUT
-        last_error: FdeGuestTimeout | None = None
+        last_error: FdeGuestError | None = None
         while time.monotonic() < deadline:
             try:
                 return self.guest.request("snapshot")
-            except FdeGuestTimeout as error:
+            except FdeGuestError as error:
+                if not self._boot_wait_may_retry(error):
+                    raise
                 last_error = error
                 self.guest.close()
                 time.sleep(POLL_INTERVAL)
         raise AssertionError(
-            "the restarted clone did not answer over its guest channel"
+            "the restarted clone did not answer over its guest channel: "
+            f"{last_error}"
         ) from last_error
+
+    @staticmethod
+    def _boot_wait_may_retry(error: FdeGuestError) -> bool:
+        """Return whether a boot wait may retry this guest failure."""
+        return isinstance(error, FdeGuestTimeout) or error.code == "snapd-error"
 
     def reboot_clone_for_verification(self) -> None:
         """Reboot after a completed repair to verify TPM unlock without a key."""

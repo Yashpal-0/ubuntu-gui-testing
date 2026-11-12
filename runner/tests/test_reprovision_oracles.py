@@ -138,6 +138,48 @@ def test_boot_wait_rejects_permanent_guest_errors(
         keyword_library.wait_for_new_boot("previous-boot")
 
 
+@pytest.mark.parametrize(
+    "error",
+    [
+        FdeGuestTimeout("snapshot", "timed out"),
+        FdeGuestError(
+            "snapshot",
+            "cannot convert volume structure",
+            code="snapd-error",
+        ),
+    ],
+)
+def test_boot_wait_after_cut_retries_the_retry_window(
+    keyword_library: Any, monkeypatch: pytest.MonkeyPatch, error: FdeGuestError
+) -> None:
+    keyword_library.guest.request.side_effect = [error, {"boot_id": "new-boot"}]
+    monkeypatch.setattr(time, "sleep", lambda _: None)
+
+    assert (
+        keyword_library.wait_for_guest_after_power_cut()["boot_id"] == "new-boot"
+    )
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        FdeGuestError("snapshot", "malformed response", code="snapd-malformed"),
+        FdeGuestError("connect", "guest host key does not match the fixture"),
+    ],
+)
+def test_boot_wait_after_cut_rejects_permanent_errors(
+    keyword_library: Any, monkeypatch: pytest.MonkeyPatch, error: FdeGuestError
+) -> None:
+    keyword_library.guest.request.side_effect = error
+
+    def retry_is_a_bug(_: float) -> None:
+        pytest.fail("a permanent guest error was retried")
+
+    monkeypatch.setattr(time, "sleep", retry_is_a_bug)
+    with pytest.raises(FdeGuestError):
+        keyword_library.wait_for_guest_after_power_cut()
+
+
 def test_shutdown_wait_returns_once_the_guest_stops_answering(
     keyword_library: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:

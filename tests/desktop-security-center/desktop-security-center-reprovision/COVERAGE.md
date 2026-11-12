@@ -66,6 +66,9 @@ reprovision context`, the baseline keyslot names are back, the original
 recovery key unlocks both devices, and the interrupted attempt's saved key
 unlocks neither. A second repair has to complete and keep a working new key.
 The case uses `prepare: ["clear-tpm-state"]` and `auth_mode=none`.
+It passes in `artifacts/fde-jrq4rij1` (357 s); the post-cut boot wait retries
+`snapd-error` and transport timeouts, while trust, authentication and
+malformed-response failures still fail at once.
 
 ## Additional covered kind
 

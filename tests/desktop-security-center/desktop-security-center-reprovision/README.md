@@ -26,6 +26,12 @@ new boot, the baseline keyslot names back in place, the original recovery key
 unlocking both devices, the interrupted attempt's saved key unlocking nothing,
 and a second repair then completing with a working new key.
 
+That oracle passes (`artifacts/fde-jrq4rij1`, 357 s). snapd answers the first
+post-boot `snapshot` with a `snapd-error` while its retry is still converting
+the interrupted keyslots, so the boot wait retries `snapd-error` and transport
+timeouts and still fails at once on trust, authentication and
+malformed-response failures.
+
 A green Robot log is the only proof. A screenshot of a dialog is not.
 
 ## Prerequisites
