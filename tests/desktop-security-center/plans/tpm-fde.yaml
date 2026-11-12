@@ -20,3 +20,92 @@ tests:
     entrypoint: "tests/desktop-security-center/"
     requirements:
       tpm: true
+  # Real reprovisioning: the runner clones the TPM-FDE image, prepares the
+  # clone's TPM or firmware state while it is stopped (FDE fixture "prepare"),
+  # then runs one case with --fde-config and --robot-test. The runner's --test
+  # value is the dotted suite path relative to the entrypoint, for example
+  # desktop-security-center-reprovision.tpm-clear-recovery-reprovision.
+  Desktop-Security-Center-Tpm-Clear-Reprovision:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "TPM clear recovery reprovision"
+      prepare: [clear-tpm-state]
+  Desktop-Security-Center-Tpm-Repair-Cancel:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "Cancel repair keeps the machine unrepaired"
+      prepare: [clear-tpm-state]
+  Desktop-Security-Center-Tpm-Missing-Device-Unavailable:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "Missing TPM offers no unsafe repair action"
+      prepare: [no-tpm]
+  Desktop-Security-Center-Tpm-Recovery-Key-Expiry:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "Expired recovery key can be regenerated and repaired"
+      prepare: [clear-tpm-state]
+  Desktop-Security-Center-Tpm-Existing-Pin-Reprovision:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "Repair removes a previously enrolled PIN"
+      prepare: [enroll-auth, clear-tpm-state]
+  Desktop-Security-Center-Tpm-Existing-Passphrase-Reprovision:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "Repair removes a previously enrolled passphrase"
+      prepare: [enroll-auth, clear-tpm-state]
+  Desktop-Security-Center-Tpm-Pin-After-Repair-Reboot:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "PIN added after repair and reboot unlocks the next boot"
+      prepare: [clear-tpm-state]
+  Desktop-Security-Center-Tpm-Passphrase-Before-Repair-Reboot:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "Passphrase added after repair unlocks the first reboot"
+      prepare: [clear-tpm-state]
+  Desktop-Security-Center-Tpm-Repair-Power-Cut:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "Power cut during repair is rolled back and retried"
+      prepare: [clear-tpm-state]
+  Desktop-Security-Center-Tpm-Sysprep-Application-Proceed:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "SysPrep application proceed repair"
+      prepare: [sysprep-app]
+  Desktop-Security-Center-Tpm-Weak-Secure-Boot-Proceed:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "Weak secure boot algorithm proceed repair"
+      prepare: [preos-weak-sb]
+  Desktop-Security-Center-Tpm-Pre-Os-Digest-Proceed:
+    entrypoint: "tests/desktop-security-center/"
+    requirements:
+      tpm: true
+    fde:
+      case: "Pre-OS digest authorization proceed repair"
+      prepare: [preos-digest-sb]

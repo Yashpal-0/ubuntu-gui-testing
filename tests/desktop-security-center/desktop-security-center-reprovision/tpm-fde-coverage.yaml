@@ -1,0 +1,267 @@
+---
+schema: 1
+pins:
+  snapd: 1f728a2361ba88f3c2192446df27051b5b267a48
+  secboot: 4924adcf6262
+  app: d2d204dd
+  snapd_dart: 0.7.8
+# Executed means observed in a passing run; every other entry names an
+# untested recipe or gap.
+kind:
+  internal-error:
+    verdict: gap(no-legitimate-recipe)
+    reason: >-
+      needs an unclassified secboot failure; every known trigger fabricates the
+      daemon's view
+  shutdown-required:
+    verdict: gap(ppi-action-phase)
+    reason: >-
+      emitted only after a PPI action reporting an S5 transition; OVMF reports
+      reboot
+  reboot-required:
+    verdict: gap(ppi-action-phase)
+    reason: >-
+      requires a PPI action; no case executes that action and asserts the
+      resulting issue
+  unexpected-action:
+    verdict: gap(app-never-sends)
+    reason: >-
+      the app applies only an action the dialog offered
+      (disk_encryption_providers.dart:1127-1130) and snapd compares it with the
+      cached context (checks_context.go:639-664); only a concurrent state change
+      between check and apply can produce it
+  missing-argument:
+    verdict: gap(never-constructed)
+    reason: declared in secboot but constructed only in tests
+  invalid-argument:
+    verdict: gap(app-never-sends)
+    reason: >-
+      the app sends only the kind snapd offered, so the argument path is
+      unreachable
+  action-failed:
+    verdict: gap(needs-ppi-action-state)
+    reason: >-
+      produced only by a failing PPI or clear-TPM action
+      (checks_context.go:670-678, 709-715); no boot-time state offers one
+      because tpm-device-disabled is firmware-only and owned hierarchies are
+      pre-install only
+  running-in-vm:
+    verdict: executed
+    case: >-
+      every reprovision case asserts it before the repair page; the passing runs
+      are the auth, expiry, no-tpm, cancel, and firmware cases
+  system-not-efi:
+    verdict: gap(no-legacy-boot-path)
+    reason: >-
+      ErrSystemNotEFI needs efivarfs to be unavailable (check_efi.go:33-37); the
+      installed disk is GPT with an ESP only, so it has no legacy boot path
+  efi-variable-access:
+    verdict: gap(runtime-only)
+    reason: >-
+      needs an efivarfs access error on a firmware variable read
+      (check_efi.go:33-42, efi.go:48-56); the recovered efivarfs faults are
+      runtime-only and the firmware recreates the variables it owns
+  no-suitable-tpm2-device:
+    verdict: executed
+    case: tpm-missing-device-unavailable
+    evidence: artifacts/fde-74dnlmu2/output.xml
+    reason: >-
+      no-tpm removes the stopped clone's TPM after healthy enrollment
+      (image_runner.py:278-319); the case passed in artifacts/fde-74dnlmu2 and
+      checks the real no-action unavailable state and unchanged credentials
+  tpm-device-failure:
+    verdict: gap(canned-reply-only)
+    reason: >-
+      ErrTPMFailure needs the TPM to report failure mode from its partial
+      self-test (check_tpm.go:285-299, checks_context.go:430-431); swtpm does
+      not, and a canned reply is not device state
+  tpm-device-disabled:
+    verdict: gap(firmware-only)
+    reason: >-
+      the firmware must clear shEnable and ehEnable at boot
+      (check_tpm.go:333-343); OVMF only disables the platform hierarchy
+      (PeiDxeTpmPlatformHierarchyLib.c:198-234) and a user-space disable does
+      not survive the reset
+  tpm-hierarchies-owned:
+    verdict: gap(pre-install-only)
+    reason: the ownership block runs only when the post-install flag is clear
+  tpm-device-lockout-locked-out:
+    verdict: gap(no-legitimate-recipe)
+    reason: >-
+      needs lockout auth unset and a locked-out TPM; no device-level recipe
+  insufficient-tpm-storage:
+    verdict: gap(pre-install-only)
+    reason: produced inside the pre-install-only TPM block
+  no-suitable-pcr-bank:
+    verdict: gap(firmware-bank-fixed)
+    reason: >-
+      the active bank set is the firmware's (Tcg2Pei.c:358-443) and the OS
+      cannot re-allocate it because OVMF randomizes or disables the platform
+      hierarchy; TCG2_CONFIGURATION stores only the TPM device
+      (Tcg2ConfigNvData.h)
+  measured-boot:
+    verdict: gap(firmware-log-always-present)
+    reason: >-
+      ReadEventLog fails only when the TCG2 log is absent (checks.go:238-241);
+      OVMF publishes it whenever a TPM2 is detected (Tcg2Dxe.c:3056-3060) and
+      ignores TCG2_CONFIGURATION (Tcg2ConfigPeim.c:4-6,44-96)
+  tpm-command-failed:
+    verdict: gap(canned-reply-only)
+    reason: >-
+      needs a TPM command error response (checks_context.go:487-496); no
+      device-level recipe makes swtpm return one
+  invalid-tpm-response:
+    verdict: gap(fabricated-response)
+    reason: >-
+      needs a malformed response that fails decoding or the response HMAC
+      (checks_context.go:497-499); only a canned or /dev/null reply produces it
+  tpm-communication:
+    verdict: gap(runtime-only)
+    reason: >-
+      needs a transport-layer failure (checks_context.go:500-502); every
+      available induction is a running-clone fault that cannot be present at the
+      boot-time check
+  unsupported-platform:
+    verdict: gap(unreachable-in-code)
+    reason: >-
+      the discreteness check cannot be reached; secboot's own classifier records
+      that the host-security check fires first (checks_context.go:506-513)
+  insufficient-dma-protection:
+    verdict: gap(non-vm-only)
+    reason: same host-security gate
+  no-kernel-iommu:
+    verdict: gap(non-vm-only)
+    reason: same host-security gate
+  host-security:
+    verdict: gap(non-vm-only)
+    reason: same host-security gate
+  tpm-pcr-unusable:
+    verdict: gap(no-legitimate-recipe)
+    reason: needs five PCR-specific fault branches; no device-level recipe
+  addon-drivers-present:
+    verdict: gap(always-permitted)
+    reason: >-
+      snapd sets PermitAddonDrivers, so the kind is downgraded to a warning
+  sys-prep-applications-present:
+    verdict: executed
+    case: tpm-sysprep-application-proceed
+  absolute-present:
+    verdict: gap(no-legitimate-recipe)
+    reason: needs firmware whose measurements show Absolute Computrace
+  invalid-secure-boot-mode:
+    verdict: gap(app-hides-state)
+    reason: >-
+      the state yields require-platform-reset, and the app shows the banner only
+      for require-reprovision
+  weak-secure-boot-algorithms-detected:
+    verdict: executed
+    case: tpm-weak-secure-boot-proceed
+  pre-os-secure-boot-auth-by-enrolled-digests:
+    verdict: executed
+    case: tpm-pre-os-digest-proceed
+  no-hardware-root-of-trust:
+    verdict: gap(non-vm-only)
+    reason: needs BootGuard or PSB visibility
+action:
+  reboot:
+    verdict: gap(no-action-case)
+    reason: >-
+      completed repairs reboot through the test helper, not the UI action
+      suggested by snapd
+  shutdown:
+    verdict: gap(ppi-action-phase)
+    reason: no legitimate S5 PPI transition recipe exists for this OVMF fixture
+  reboot-to-fw-settings:
+    verdict: gap(guidance-only)
+    reason: >-
+      the app only displays it; no covered state offers it in a drivable flow
+  contact-oem:
+    verdict: gap(guidance-only)
+    reason: the app only displays it
+  contact-os-vendor:
+    verdict: gap(non-vm-only)
+    reason: attached to no-kernel-iommu, which needs bare metal
+  enable-tpm-via-firmware:
+    verdict: gap(no-action-case)
+    reason: >-
+      attached to tpm-device-disabled, which no boot-time state produces; the
+      PPI path itself exists in the fixture
+  enable-and-clear-tpm-via-firmware:
+    verdict: gap(no-action-case)
+    reason: same firmware-only state; no case can offer it
+  clear-tpm-via-firmware:
+    verdict: gap(no-action-case)
+    reason: attached to the owned and lockout kinds; no case yet
+  clear-tpm-simple:
+    verdict: gap(pre-install-only)
+    reason: its kinds cannot occur post-install
+  clear-tpm:
+    verdict: gap(pre-install-only)
+    reason: same
+  proceed:
+    verdict: executed
+    case: >-
+      tpm-pre-os-digest-proceed, tpm-weak-secure-boot-proceed,
+      tpm-sysprep-application-proceed
+status:
+  indeterminate:
+    verdict: gap(no-case)
+    reason: no activate state or no model yet; no case exercises it
+  active:
+    verdict: executed
+    case: >-
+      the four repair-completing cases assert snapd active and the healthy page
+  inactive:
+    verdict: gap(no-case)
+    reason: classic non-hybrid without unlock state; no case exercises it
+  recovery:
+    verdict: executed
+    case: every reprovision case starts from the recovery-key boot
+  degraded:
+    verdict: gap(forged-state-only)
+    reason: the only recovered recipe edited unlocked.json
+  failed:
+    verdict: gap(client-only)
+    reason: >-
+      snapd defines five statuses; this value exists only in the Dart client
+auto-repair-result:
+  not-initialized:
+    verdict: gap(no-case)
+    reason: needs a boot with no auto-repair record; no case exercises it
+  not-attempted:
+    verdict: executed
+    case: tpm-clear-recovery-reprovision asserts it before the repair
+  failed-platform-init:
+    verdict: gap(no-legitimate-recipe)
+    reason: needs a partial reprovision failure; no device-level recipe
+  failed-keyslots:
+    verdict: gap(no-legitimate-recipe)
+    reason: needs a reseal failure; no device-level recipe
+  failed-encryption-support:
+    verdict: executed
+    case: >-
+      tpm-pre-os-digest-proceed, tpm-weak-secure-boot-proceed,
+      tpm-sysprep-application-proceed
+    evidence: >-
+      artifacts/fde-22gzjtfc/output.xml, artifacts/fde-fy41t4jd/output.xml,
+      artifacts/fde-tuauizzp/output.xml
+    reason: >-
+      each run logged this actual result; the cases also accept not-attempted
+      and do not guarantee this result on every boot
+  success:
+    verdict: gap(no-case)
+    reason: >-
+      no case observes successful automatic repair; a completed manual
+      reprovision is not this result
+recommendation:
+  permit-manual:
+    verdict: gap(no-case)
+    reason: needs auto-repair impossible with a wrong secret as the only fault
+  require-reprovision:
+    verdict: executed
+    case: >-
+      every reprovision case asserts it before the repair; a post-interruption
+      re-assertion is not claimed until the power-cut case passes
+  require-platform-reset:
+    verdict: gap(app-hides-state)
+    reason: the app shows the repair banner only for require-reprovision
