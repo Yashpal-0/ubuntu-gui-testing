@@ -3,7 +3,7 @@ id: "09-failure-cases"
 title: "Three reprovision failure cases"
 type: task
 label: "wayfinder:task"
-state: open
+state: closed
 parent: map
 assignee: null
 depends_on: ["01-runner-fde-seam", "02-golden-checkpoint-export", "04-gdm-login", "08-happy-path-cases"]
@@ -29,8 +29,8 @@ Case 1 is implemented (`tpm-repair-cancel.robot`): it declines the dialog and
 asserts the boot id, authentication mode and repair history are unchanged, with
 no `fde-reprovision` change in flight.
 
-Case 2 has a clone-identity-guarded asynchronous observer, but no verified
-end-to-end case yet. Review found that queued `Do` changes were incorrectly
+Case 2 started with a clone-identity-guarded asynchronous observer and no
+verified end-to-end case. Review found that queued `Do` changes were incorrectly
 treated as started, and snapd holds its state lock during reprovisioning, so
 API polling cannot prove an in-handler power cut. A passive observer and an
 independent completion-timing oracle are being implemented. Missing code is
@@ -63,8 +63,8 @@ the typed timeout. It then failed in `Wait For Guest After Power Cut` after the
 600 s boot budget: the case waited for the guest channel before answering the
 initramfs prompt, but an interrupted attempt has already re-keyed the disk, so
 the restarted clone stops at `Enter recovery key for unknown (ubuntu-data)` and
-no SSH exists until that prompt is answered. The case now unlocks the clone
-before it waits for the channel; the rollback oracle is still unproven.
+no SSH exists until that prompt is answered. The case then unlocked the clone
+before it waited for the channel; the rollback oracle was still unproven.
 
 The unlock-first replay (`artifacts/fde-_2des04r`) cut the clone 5 min 41 s in
 and proved the guest channel dead, then failed after 897 s: the restarted clone
@@ -94,7 +94,7 @@ userspace either way. Run mode is configured by `ubuntu-boot:/EFI/ubuntu/grub.cf
 `snapd_full_cmdline_args=console=ttyS0,115200n8 console=tty1 panic=-1 quiet
 splash snapd.xkb="us,pc105,,"`; its `kernel.efi` symlink points at
 `pc-kernel_3755.snap`, not the `pc-kernel_3672` snap the seed carries. The case
-does not pass and the rollback oracle remains unproven.
+stopped there because that boot never reached the prompt.
 
 The next unlock-first replay, `artifacts/fde-2olmq2wa`, got past the prompt:
 after the cut, `Unlock Encrypted Boot` answered the recovery-key prompt in 47 s
@@ -107,6 +107,30 @@ unlock is early enough that the on-boot retry could still be mid-flight, so this
 records a probe result, not a permanently empty keyslot; polling the endpoint on
 a preserved clone to a terminal change state is the next check. The silent
 reboot loop and this error are likely two outcomes of the same post-cut state.
+
+That check settles it: a clone kept after the cut (`--keep`), unlocked with the
+fixture recovery key, answers `snapshot` in 0.2 s once userspace is up, and
+reports change 50, `fde-reprovision`, `Error`, `missing reprovision context`,
+spawned 16:35:15 and ready 16:36:04, with `default`, `default-fallback` and
+`default-recovery` back on both `system-data` and `system-save`. So snapd does
+roll the interrupted attempt back and fail the change exactly as the oracle
+expects; the six-second failure was the probe reading snapd's own in-flight
+`snapd-error` while its retry converted the keyslots. `wait_for_guest_after_power_cut`
+now retries `snapd-error` and transport timeouts but still fails at once on
+trust, authentication and malformed-response failures, and
+`_settled_interrupted_change` (which already documents this window) can now
+reach its wait. The silent reboot loop is the other outcome of the same
+interrupted state, where the prompt times out instead of being answered.
+
+The case now passes: `artifacts/fde-jrq4rij1`, 357 s, `1 test, 1 passed, 0
+failed`. It cut the clone 0.3 s after the handler replaced the stage file,
+unlocked the restarted clone with the fixture recovery key in 56.8 s, tolerated
+7.7 s of the retry window, asserted exactly one new `fde-reprovision` change
+spawned before the cut and finished in `Error` with `missing reprovision
+context`, the baseline keyslots back on both devices, the fixture recovery key
+unlocking both, and the interrupted attempt's saved key unlocking neither. It
+then re-ran the repair to `Done`, rebooted, unlocked without a key, and found
+the repair no longer recommended with unchanged recovery credentials.
 
 Case 3 passes (`tpm-recovery-key-expiry.robot`, `artifacts/fde-m2u9u88d`), including a real 310-second
 wait, exact backend expiry assertion, rejection of the expired key on both

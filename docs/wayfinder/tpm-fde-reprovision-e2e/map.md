@@ -1,7 +1,7 @@
 ---
 type: map
 label: wayfinder:map
-state: open
+state: closed
 ---
 
 # TPM-FDE reprovisioning end-to-end suite (local)
@@ -52,13 +52,15 @@ Only mutations at actual physical/virtual device boundaries (disk, partition tab
 - [Coverage manifest and verdicts](tickets/10-coverage-manifest.md): 59 entries, 11 executed, 0 recipe-known, 48 gap(reason); every `executed` entry names a passing case in which it was observed, no entry without a verdict.
 - [State cases](tickets/07-state-cases.md): three state kinds pass on real VMs (`fde-eulq8mx4`, `fde-jmt6ti2b`, `fde-kb6g12cr`), the cleared-TPM `running-in-vm`/`require-reprovision` case passes, and the other ten kinds carry source-backed blocked verdicts, so every kind has a verdict.
 - [Happy-path cases](tickets/08-happy-path-cases.md): all five pass on real VMs, including a passphrase added after repair (`fde-e2vs086r`); the Add-step template that broke two replays was a 61x35 crop that could not match the 1280x800 dialog and is now a pixel-exact 92x37 crop.
+- [Three reprovision failure cases](tickets/09-failure-cases.md): cancel and key-expiry pass; the power cut passes end to end (`fde-jrq4rij1`, 357 s) after the post-cut boot wait learned to retry only `snapd-error` and transport timeouts; the interrupted clone's reboot loop and unanswered prompt are recorded as the other outcome of the same state.
+- [On-demand runbook and full-suite proof](tickets/11-runbook-and-proof.md): the results table accounts for all 21 scenarios with eleven passes and ten source-cited state blockers; the runbook carries per-case invocation, secret handling, report reading, and the `--keep` leftover-volume trap.
 
 ## Remaining verification
 
 - `results.md` accounts for all 21 requested scenarios and the additional missing-TPM unavailable flow; a pending row is not a pass.
 - Reboot/relogin and real expiry/regenerate/retry pass. All five happy paths have clean real-VM evidence (`fde-fnircwvi`, `fde-ilf71dfu`, `fde-2sj8zuoj`, `fde-abpqgvdm`, `fde-e2vs086r`).
-- The passive power-cut trigger is implemented and its real-VM proof of the cut passes (`fde-6348xo9_`: stage file replaced, typed timeout returned in 0.0 s); the post-cut rollback oracle is a cited blocker, not a pass. Booting the preserved disk, NVRAM and TPM state outside the suite shows a deliberate reboot loop that never offers the recovery key, so `fde-_2des04r` failed after 897 s and ticket 09 stays open. A queued change or a mocked observer is not evidence.
-- The runbook is written (`tests/desktop-security-center/desktop-security-center-reprovision/README.md`) and the results table accounts for every requested scenario: ten passes with run directories, ten source-cited state blockers, and the power-cut blocker.
+- The power-cut case passes end to end (`fde-jrq4rij1`, 357 s): the handler replaced its stage file, the host cut power on the typed timeout in 0.0 s, the restarted clone was unlocked with the recovery key, snapd's on-boot retry restored the baseline keyslots and failed the change with `missing reprovision context`, the interrupted attempt's key was rejected, and a second repair completed with a reboot that unlocked without a key. The post-cut boot wait retries only `snapd-error` and transport timeouts; the earlier replay failures that led there are recorded in ticket 09.
+- The runbook is written (`tests/desktop-security-center/desktop-security-center-reprovision/README.md`) and the results table accounts for every requested scenario: eleven passes with run directories and ten source-cited state blockers.
 - The three firmware-state recipes have clean-log replays (`fde-eulq8mx4`, `fde-jmt6ti2b`, `fde-kb6g12cr`) with no recovery-key pattern in any report; their older private XML logs contain recovery keys and are not evidence.
 - Preflight checks installed identities against the private fixture. A separate golden export's existence does not prove equivalence with the actual source paths in `ugt-fde-checkpoint` XML, or establish executable build provenance.
 

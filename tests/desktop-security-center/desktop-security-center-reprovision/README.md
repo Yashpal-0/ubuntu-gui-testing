@@ -30,7 +30,8 @@ That oracle passes (`artifacts/fde-jrq4rij1`, 357 s). snapd answers the first
 post-boot `snapshot` with a `snapd-error` while its retry is still converting
 the interrupted keyslots, so the boot wait retries `snapd-error` and transport
 timeouts and still fails at once on trust, authentication and
-malformed-response failures.
+malformed-response failures. [Ticket 09](../../../docs/wayfinder/tpm-fde-reprovision-e2e/tickets/09-failure-cases.md#status)
+records the measurements behind that behaviour.
 
 A green Robot log is the only proof. A screenshot of a dialog is not.
 

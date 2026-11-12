@@ -3,7 +3,7 @@ id: "11-runbook-and-proof"
 title: "On-demand runbook and full-suite proof"
 type: task
 label: "wayfinder:task"
-state: open
+state: closed
 parent: map
 assignee: null
 depends_on: ["07-state-cases", "08-happy-path-cases", "09-failure-cases", "10-coverage-manifest"]
@@ -30,13 +30,14 @@ there is no single-invocation whole-suite command, because `--fde-config`
 requires `--robot-test` and the fixture selects the clone mutation; the proof is
 one clone per case with its own run directory.
 
-The results table accounts for all 21 requested scenarios: ten passes, each
-citing the run directory whose `output.xml` reports `pass="1" fail="0"`, and
-eleven cited blockers — the ten unreachable snapd state kinds with source
-citations, and the power-cut rollback oracle recorded in
-[ticket 09](09-failure-cases.md#status). No row is a mock or a skipped run.
+The results table accounts for all 21 requested scenarios: eleven passes, each
+citing the run directory whose `output.xml` reports `pass="1" fail="0"`, and ten
+cited blockers — the ten unreachable snapd state kinds, each with its source
+citation. No row is a mock or a skipped run.
 
-The only open dependency is ticket 09: the power-cut case is implemented,
-registered in the plan, and currently fails because the interrupted clone
-reboots before offering the recovery key. This ticket closes when that case
-either passes or its blocker is recorded as final.
+[Ticket 09](09-failure-cases.md#status) closed with a pass:
+`tpm-repair-power-cut.robot` interrupts a confirmed repair, proves snapd rolled
+the interrupted attempt back and failed it with `missing reprovision context`,
+checks both recovery-key outcomes, then completes a second repair whose reboot
+unlocks without a key (`artifacts/fde-jrq4rij1`, 357 s). The destination proof
+is complete: every case has a pass or a cited blocker.
