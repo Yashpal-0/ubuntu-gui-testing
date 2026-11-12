@@ -15,3 +15,10 @@ venv/
 build/
 dist/
 *.egg-info/
+
+# Robot/Yarf run output (contains OCR text, including recovery keys)
+artifacts/
+# Robot writes these three names into the working directory by default; runs belong in artifacts/
+/output.xml
+/log.html
+/report.html
