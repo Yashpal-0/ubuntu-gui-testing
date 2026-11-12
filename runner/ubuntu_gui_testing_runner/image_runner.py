@@ -531,6 +531,9 @@ class LibvirtImageRunner(_BaseLibvirtRunner):
         try:
             returncode = await yarf_process.wait()
             LOGGER.info("YARF process exited with code %s", returncode)
+            video = self._save_log_video()
+            if video is not None:
+                LOGGER.info("Saved Yarf log video to '%s'", video)
             return returncode
         finally:
             if yarf_process.returncode is None:

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import os
+import re
 import time
 from abc import abstractmethod
 from datetime import date
@@ -24,6 +26,10 @@ from ubuntu_gui_testing_runner.constants import (
 from ubuntu_gui_testing_runner.runner import Runner
 
 LOGGER = logging.getLogger(__name__)
+
+# Yarf inlines its suite video as a data URI, which makes output.xml large and
+# the recording awkward to share outside log.html.
+_LOG_VIDEO = re.compile(r"data:video/webm;base64,([A-Za-z0-9+/=]+)")
 
 
 class _BaseLibvirtRunner(Runner):
@@ -324,8 +330,10 @@ class _BaseLibvirtRunner(Runner):
             suite,
             "--outdir",
             str(self.artifacts_path),
-            "--",
         ]
+        if is_fde:
+            command.append("--log-video")
+        command.append("--")
         for name, value in robot_variables.items():
             command.extend(["--variable", f"{name}:{value}"])
         command.extend(["--suite", test])
@@ -342,6 +350,28 @@ class _BaseLibvirtRunner(Runner):
             return await asyncio.create_subprocess_exec(*command, env=env, umask=0o077)
         process = await asyncio.create_subprocess_exec(*command, env=env)
         return process
+
+    def _save_log_video(self) -> Path | None:
+        """Write Yarf's embedded log video to a standalone file.
+
+        Returns the written path, or None when the run produced no video.
+        """
+        try:
+            output_xml = (self.artifacts_path / "output.xml").read_text(
+                encoding="utf-8", errors="replace"
+            )
+        except OSError:
+            return None
+        match = _LOG_VIDEO.search(output_xml)
+        if match is None:
+            return None
+        video = self.artifacts_path / "video.webm"
+        # The recording can show a recovery key on screen, so it stays owner-only
+        # even when the artifacts directory was supplied by the caller.
+        video.touch(mode=0o600)
+        video.write_bytes(base64.b64decode(match.group(1)))
+        video.chmod(0o600)
+        return video
 
     @staticmethod
     def _render_template(path: Path, replacements: dict[str, str]) -> str:

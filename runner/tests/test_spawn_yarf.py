@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import stat
 import sys
 from pathlib import Path
@@ -25,15 +26,15 @@ class _FakeRunner(_BaseLibvirtRunner):
 
 
 @pytest.mark.parametrize(
-    "robot_variables",
+    ("robot_variables", "yarf_args"),
     [
-        {"CID": "3"},
-        {"CID": "3", "FDE_CONFIG": "/private/fde.json"},
-        {"CID": "3", "FDE_CONFIG": ""},
+        ({"CID": "3"}, []),
+        ({"CID": "3", "FDE_CONFIG": "/private/fde.json"}, ["--log-video"]),
+        ({"CID": "3", "FDE_CONFIG": ""}, ["--log-video"]),
     ],
 )
 def test_yarf_command_includes_suite_and_test(
-    robot_variables: dict[str, str], tmp_path: Path
+    robot_variables: dict[str, str], yarf_args: list[str], tmp_path: Path
 ) -> None:
     captured_cmd: list[str] = []
 
@@ -65,7 +66,8 @@ def test_yarf_command_includes_suite_and_test(
         assert outdir.parent == tmp_path / "artifacts"
     else:
         assert outdir == tmp_path / "artifacts"
-    assert captured_cmd[5:separator] == []
+    assert captured_cmd[5:separator] == yarf_args
+    assert "--log-video" not in captured_cmd[separator + 1 :]
     assert captured_cmd[-2:] == ["--suite", "my-test"]
 
 
@@ -207,3 +209,53 @@ def test_yarf_command_uses_configured_artifacts_dir() -> None:
 
     outdir_idx = captured_cmd.index("--outdir")
     assert captured_cmd[outdir_idx + 1] == "/custom/output"
+
+
+def test_saves_the_yarf_log_video_beside_the_log(tmp_path: Path) -> None:
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    payload = b"\x1aE\xdf\xa3webm"
+    encoded = base64.b64encode(payload).decode()
+    (artifacts / "output.xml").write_text(
+        '<msg html="true">&lt;video src="data:video/webm;base64,'
+        f'{encoded}" /&gt;</msg>',
+        encoding="utf-8",
+    )
+
+    runner = _FakeRunner.__new__(_FakeRunner)
+    runner.artifacts_path = artifacts
+
+    video = runner._save_log_video()
+
+    assert video == artifacts / "video.webm"
+    assert video.read_bytes() == payload
+    assert stat.S_IMODE(video.stat().st_mode) == 0o600
+
+
+def test_tightens_an_existing_world_readable_video(tmp_path: Path) -> None:
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    encoded = base64.b64encode(b"webm").decode()
+    (artifacts / "output.xml").write_text(
+        '<msg html="true">&lt;video src="data:video/webm;base64,'
+        f'{encoded}" /&gt;</msg>',
+        encoding="utf-8",
+    )
+    stale = artifacts / "video.webm"
+    stale.write_bytes(b"old")
+    stale.chmod(0o644)
+
+    runner = _FakeRunner.__new__(_FakeRunner)
+    runner.artifacts_path = artifacts
+
+    video = runner._save_log_video()
+
+    assert video is not None
+    assert stat.S_IMODE(video.stat().st_mode) == 0o600
+
+
+def test_reports_no_video_for_a_run_without_one(tmp_path: Path) -> None:
+    runner = _FakeRunner.__new__(_FakeRunner)
+    runner.artifacts_path = tmp_path
+
+    assert runner._save_log_video() is None
